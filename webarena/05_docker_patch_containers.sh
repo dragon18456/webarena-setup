@@ -5,6 +5,23 @@ set -e
 
 source 00_vars.sh
 
+# Wait for MySQL to be ready in shopping container
+echo "Waiting for MySQL in shopping container to be ready..."
+MAX_RETRIES=30
+RETRY_INTERVAL=5
+for i in $(seq 1 $MAX_RETRIES); do
+    if docker exec shopping mysql -u magentouser -pMyPassword magentodb -e "SELECT 1" > /dev/null 2>&1; then
+        echo "MySQL is ready!"
+        break
+    fi
+    if [ $i -eq $MAX_RETRIES ]; then
+        echo "ERROR: MySQL in shopping container did not become ready after $((MAX_RETRIES * RETRY_INTERVAL)) seconds"
+        exit 1
+    fi
+    echo "MySQL not ready yet, waiting... (attempt $i/$MAX_RETRIES)"
+    sleep $RETRY_INTERVAL
+done
+
 # reddit - make server more responsive
 docker exec forum sed -i \
   -e 's/^pm.max_children = .*/pm.max_children = 32/' \
